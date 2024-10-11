@@ -9,6 +9,35 @@ from sklearn.metrics import accuracy_score,mean_absolute_error, root_mean_square
 from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
+import matplotlib.pyplot as plt
+
+def safeDivide(numerator: float, denomonator: float) -> float:
+    return 0 if denomonator == 0 else numerator / denomonator
+
+class Results:
+    def __init__(self, accuracy:float, mae:float, rmse:float, confusion_matrix:np.ndarray):
+        self.accuracy = accuracy
+        self.mae = mae
+        self.rmse = rmse
+        self.true_negatives, self.false_positives, self.false_negatives, self.true_positives = confusion_matrix.ravel()
+        self.total = self.true_negatives + self.false_positives + self.false_negatives + self.true_positives
+        self.false_positives_rate = self.false_positives / self.total
+        self.false_negatives_rate = self.false_negatives / self.total
+        self.precision = safeDivide(self.true_positives, (self.true_positives + self.false_positives) )  
+        self.recall = safeDivide(self.true_positives, (self.true_positives + self.false_negatives))  
+        self.f1_score =  2 * safeDivide((self.precision * self.recall) ,(self.precision + self.recall))
+
+    
+    def __str__(self):
+        return f'''Results 
+    Accuracy: {self.accuracy:.2f}
+    Mean Absolute Error: {self.mae:.2f}
+    Root Mean Squared Error: {self.rmse:.2f}
+    False Positives: {self.false_positives_rate:.2f}
+    Fales Negatives: {self.false_negatives_rate: .2f}
+    Precision: {self.precision:.2f}
+    Recall: {self.recall:.2f}
+    F1 Score: {self.f1_score:.2f}'''
 
 
 timestamp = 'timestamp'
@@ -71,7 +100,7 @@ def inject_anomalies(normal:pd.DataFrame, anomalies:pd.DataFrame, start_time: da
     print(f'{subset_normal.shape[0]} normals selected to be overwritten')
     return pd.concat([normal.drop(normal[normal_conditoin].index), subset_anomalies], ignore_index=True), index  
 
-def mergeData(normals:pd.DataFrame, anomalies:pd.DataFrame, anomaly_percentage_target:float=0.05) -> pd.DataFrame:
+def mergeData(normals:pd.DataFrame, anomalies:pd.DataFrame, anomaly_percentage_target:float=0.05) -> tuple[pd.DataFrame,float]:
     max_size = normals.shape[0] + anomalies.shape[0]
     anomaly_percentage = 0
     iteration = 0
@@ -88,7 +117,7 @@ def mergeData(normals:pd.DataFrame, anomalies:pd.DataFrame, anomaly_percentage_t
     print(f'total iterations: {iteration} - final anomaly_percentage: {anomaly_percentage}')
     normals.sort_values(timestamp)
     print(f'merged shape: {normals.shape}')
-    return normals
+    return normals, anomaly_percentage
 
 def reduceDimensions(data: pd.DataFrame) -> pd.DataFrame:
     columns_to_drop = [
@@ -111,7 +140,7 @@ def reduceDimensions(data: pd.DataFrame) -> pd.DataFrame:
         'received_bytes',
         'sent_bytes'
     ]
-    return data.iloc[: ~data.columns.isin(columns_to_drop)]
+    return data.iloc[:, ~data.columns.isin(columns_to_drop)]
       
 def normalizeAndSplitData(data: pd.DataFrame, train_size: float = 0.70, test_size: float = 0.15, validate_size: float = 0.15, look_back: int = 0, batch_size: int = 128) -> tuple[TimeseriesGenerator,TimeseriesGenerator,TimeseriesGenerator]:
     user_mask = data.columns.isin(['USER'])
@@ -141,42 +170,37 @@ def buildTrainAndTestModel(train: TimeseriesGenerator, test:TimeseriesGenerator,
     model.add(Dense(1, activation='sigmoid'))
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     model.summary()
-    history = model.fit(train, epochs=epochs, verbose=1)
-    test_loss, test_accuracy = model.evaluate(test_accuracy, verbose=0)
-    print(f"Test Loss: {test_loss:.2f}")
-    print(f"Test Accuracy: {test_accuracy:.2f}")
+    history = model.fit(train, epochs=epochs, verbose=1, validation_data=test)
     return model, history  
 
-def validateModel(model: Sequential, validation: TimeseriesGenerator, look_back:int=0):
+def validateModel(model: Sequential, validation: TimeseriesGenerator, look_back:int=0) -> Results:
     # Make a prediction (example with last batch of validation data)
     predictions = model.predict(validation)
     predictions = (predictions >= 0.5).astype(int)
-    actual = validation.data.targets[look_back:]
+    actual = validation.targets[look_back:]
 
     # Calculate accuracy, MAE and RMSE
     accuracy = accuracy_score(actual, predictions)
     mae = mean_absolute_error(actual, predictions)
     rmse = root_mean_squared_error(actual, predictions)
-    true_negatives, false_positives, false_negatives, true_positives = confusion_matrix(actual, predictions).ravel()
-    total = actual.shape[0]
-    false_positives_rate = false_positives / total
-    false_negatives_rate = false_negatives / total
-    precision = true_positives / (true_positives + false_positives)
-    recall = true_positives / (true_positives + false_negatives)
-    f1_score = 2 * (precision * recall) / (precision + recall)
+    cm = confusion_matrix(actual, predictions)
+    results = Results(accuracy,mae,rmse,cm)
+    print(results)
+    return results
 
 
-    print(f'Accuracy: {accuracy:.2f}')
-    print(f'Mean Absolute Error: {mae:.2f}')
-    print(f'Root Mean Squared Error: {rmse:.2f}')
-    print(f'False Positives: {false_positives_rate:.2f}')
-    print(f'Fales Negatives: {false_negatives_rate: .2f}')
-    print(f'Precision: {precision:.2f}')
-    print(f'Recall: {recall:.2f}')
-    print(f'F1 Score: {f1_score:.2f}')   
-     
 def plotHistory(history):
-    pass
+    plt.figure(figsize=(12, 6))
+    plt.plot(history['loss'], label='Training Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+
+def plotMetrics(metrics: list):
+    for metric in metrics:
+        plotHistory(metric['history'])
   
 def main():
     working_dir = '/Users/osono/Library/CloudStorage/OneDrive-NorthCarolinaA&TStateUniversity/COMP 850 - 1A Big Data Analytics/Project/continuous authentication/datasets/Behacom'
@@ -187,18 +211,37 @@ def main():
     look_back = 5
     epochs = 10
     file_paths = loadFiles(current_directory)
-    i = 0
-    while file_paths.size > 0 and i < 1:
-        i+=1
+   
+    metrics = []
+    while file_paths.size > 0 and len(metrics) < 1:
         choices =  np.random.choice(file_paths, size=2, replace=False)
         file_paths = file_paths[np.isin(file_paths, choices, invert=True)]
         normals, anomalies = loadData(choices[0], choices[1])
-        merged = reduceDimensions(mergeData(normals, anomalies))
-       
-        train, test, validation = normalizeAndSplitData(merged, look_back=look_back)
+        metric = {
+            'normals': {
+                'path': choices[0],
+                'shape': normals.shape
+            },
+            'anomalies': {
+                'path': choices[1],
+                'shape': anomalies.shape
+            }
+        }
+        merged, anomaly_percentage = mergeData(normals, anomalies)
+        merged = reduceDimensions(merged)
+        metric['merged'] = {
+            'shape': merged.shape,
+            'anomaly_percentage': anomaly_percentage
+        }
+        
+        train, test, validation = normalizeAndSplitData(merged, look_back=look_back, batch_size=10)
         model, history = buildTrainAndTestModel(train, test, epochs=epochs, look_back=look_back)
-        plotHistory(history)
-        validateModel(model,validation,look_back=look_back)
+        metric['history'] = history.history
+        results = validateModel(model,validation,look_back=look_back)
+        metric['results'] = results
+        metrics.append(metric)
+
+    plotMetrics(metrics)  
 
         
 if __name__ == '__main__':
