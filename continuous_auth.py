@@ -183,7 +183,7 @@ def validateModel(model: Sequential, validation: TimeseriesGenerator, look_back:
     accuracy = accuracy_score(actual, predictions)
     mae = mean_absolute_error(actual, predictions)
     rmse = root_mean_squared_error(actual, predictions)
-    cm = confusion_matrix(actual, predictions)
+    cm = confusion_matrix(actual, predictions, labels=[True, False])
     results = Results(accuracy,mae,rmse,cm)
     print(results)
     return results
