@@ -1,0 +1,9 @@
+{
+    "anomaly-percentage": 0.0612735659,
+    "binary-accuracy": 0.9014576518,
+    "client-id": 5.3541666667,
+    "f1-score": 0.1459066531,
+    "loss": 11.2395663758,
+    "precision": 0.0,
+    "recall": 0.0
+}
