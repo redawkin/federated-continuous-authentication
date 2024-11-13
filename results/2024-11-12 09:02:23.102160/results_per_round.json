@@ -1,0 +1,1 @@
+{"anomaly-percentage":{"1":0.0181338908},"binary-accuracy":{"1":0.9854166706},"f1-score":{"1":0.0279441079},"false-negatives":{"1":18.6666666667},"false-positives":{"1":0.0},"loss":{"1":21.5848700205},"precision":{"1":0.0},"recall":{"1":0.0},"true-negatives":{"1":4968.0},"true-positives":{"1":0.0},"false-acceptance-rate":{"1":0.0},"false-rejection-rate":{"1":0.3333333333}}

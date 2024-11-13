@@ -1,0 +1,1 @@
+{"binary-accuracy":{"1":0.9476947387},"f1-score":{"1":0.099390318},"false-negatives":{"1":219.3333333333},"false-positives":{"1":0.0},"loss":{"1":21.6652228038},"precision":{"1":0.0},"recall":{"1":0.0},"true-negatives":{"1":4155.0},"true-positives":{"1":0.0},"false-acceptance-rate":{"1":0.0},"false-rejection-rate":{"1":1.0}}
