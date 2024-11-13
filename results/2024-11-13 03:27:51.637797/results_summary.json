@@ -1,0 +1,1 @@
+{"binary-accuracy":0.9407523349,"client-id":6.1458333333,"f1-score":0.0915663309,"false-negatives":88.3125,"false-positives":697.25,"loss":10.8701382279,"precision":0.0851059633,"recall":0.3163160425,"true-negatives":2083.7083333333,"true-positives":56.7083333333,"false-acceptance-rate":0.1807224144,"false-rejection-rate":0.6836839577}
